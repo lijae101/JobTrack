@@ -1,12 +1,18 @@
 
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
   LayoutDashboard,
   Settings,
   SquareKanban,
+  LogOut,
 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 const navigation = [
   {
@@ -27,6 +33,29 @@ const navigation = [
 ];
 
 export function Sidebar() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+
+    try {
+      const { error } = await authClient.signOut();
+
+      if (error) {
+        console.error("Logout failed:", error);
+        setIsLoggingOut(false);
+        return;
+      }
+
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
+      setIsLoggingOut(false);
+    }
+  }
+
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 items-center gap-3 border-b px-6">
@@ -90,6 +119,15 @@ export function Sidebar() {
           </div>
           <ChartNoAxesCombined className="ml-auto size-4 text-muted-foreground" />
         </div>
+
+        <button
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50"
+        >
+          <LogOut className="size-4" />
+          {isLoggingOut ? "Signing out..." : "Sign out"}
+        </button>
       </div>
     </aside>
   );

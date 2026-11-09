@@ -7,6 +7,66 @@ import { getApplicationsCollection } from "@/lib/models/application-collection";
 import { applicationSchema } from "@/lib/validations/application";
 import type { JobApplication } from "@/lib/models/application";
 
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // 1. Verify the user's session
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // 2. Get and validate the application ID
+    const { id } = await params;
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: "Invalid application ID" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Find the application belonging to this user
+    const collection = await getApplicationsCollection();
+
+    const application = await collection.findOne({
+      _id: new ObjectId(id),
+      userId: session.user.id,
+    });
+
+    if (!application) {
+      return NextResponse.json(
+        { error: "Application not found" },
+        { status: 404 }
+      );
+    }
+
+    // 4. Return the application
+    return NextResponse.json({
+      application: {
+        ...application,
+        id: application._id.toString(),
+      },
+    });
+  } catch (error) {
+    console.error("Failed to fetch application:", error);
+
+    return NextResponse.json(
+      { error: "Failed to fetch application" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

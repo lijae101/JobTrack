@@ -1,24 +1,27 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownUp,
   BriefcaseBusiness,
   ChevronDown,
+  Trash2,
   Search,
+  Pencil,
 } from "lucide-react";
-
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import type { ApplicationStatus } from "@/lib/models/application";
 import {
-  sampleApplications,
-  type ApplicationStatus,
+  getApplications,
+  deleteApplication,
   type JobApplication,
-} from "@/lib/sample-data";
+} from "@/lib/api/applications";
+
 
 type SortOption = "newest" | "oldest" | "company";
 
@@ -48,21 +51,77 @@ function getStatusClasses(status: ApplicationStatus) {
   }
 }
 
-function formatDate(date: string | null) {
+function formatDate(date: string | null | undefined) {
   if (!date) return "—";
 
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-CA", {
+  const [year, month, day] = date.slice(0, 10).split("-").map(Number);
+
+  const parsedDate = new Date(year, month - 1, day, 12);
+
+  return parsedDate.toLocaleDateString("en-CA", {
+    year: "numeric",
     month: "short",
     day: "numeric",
-    year: "numeric",
   });
 }
 
 export default function ApplicationsPage() {
-  const [applications] = useState<JobApplication[]>(sampleApplications);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All statuses");
   const [sort, setSort] = useState<SortOption>("newest");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
+  
+  async function handleDelete(id: string) {
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this application? This action cannot be undone."
+  );
+
+  if (!confirmed) return;
+
+  setDeletingId(id);
+
+  try {
+    await deleteApplication(id);
+
+    setApplications((current) =>
+      current.filter((application) => application.id !== id)
+    );
+  } catch (error) {
+    window.alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to delete application."
+    );
+  } finally {
+    setDeletingId(null);
+  }
+}
+
+
+  useEffect(() => {
+  async function loadApplications() {
+    try {
+      setIsLoading(true);
+      const data = await getApplications();
+      setApplications(data);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  loadApplications();
+}, []);
+
 
   const filteredApplications = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -88,8 +147,8 @@ export default function ApplicationsPage() {
         if (!b.appliedAt) return -1;
 
         return sort === "newest"
-          ? b.appliedAt.localeCompare(a.appliedAt)
-          : a.appliedAt.localeCompare(b.appliedAt);
+  ? new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
+  : new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime();
       });
   }, [applications, search, statusFilter, sort]);
 
@@ -130,6 +189,17 @@ export default function ApplicationsPage() {
             </Button>
           </div>
 
+          {isLoading && (
+  <p className="text-sm text-muted-foreground">
+    Loading your applications...
+  </p>
+)}
+
+{error && (
+  <p className="text-sm text-destructive">
+    {error}
+  </p>
+)}
           <Card className="gap-0 py-0 shadow-none">
             <CardContent className="space-y-4 p-4 sm:p-5">
               <div className="flex flex-col gap-3 lg:flex-row">
@@ -198,47 +268,80 @@ export default function ApplicationsPage() {
 
             <div className="overflow-x-auto border-t">
               <table className="w-full text-left text-sm">
-                <thead className="bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-5 py-3 font-medium">Company</th>
-                    <th className="px-5 py-3 font-medium">Position</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium">Location</th>
-                    <th className="px-5 py-3 font-medium">Applied</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {filteredApplications.map((application) => (
-                    <tr
-                      key={application.id}
-                      className="transition-colors hover:bg-muted/30"
-                    >
-                      <td className="whitespace-nowrap px-5 py-4 font-medium">
-                        {application.company}
-                      </td>
-                      <td className="min-w-48 px-5 py-4">
-                        {application.jobTitle}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4">
-                        <Badge
-                          variant="outline"
-                          className={getStatusClasses(application.status)}
-                        >
-                          {application.status}
-                        </Badge>
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
-                        {application.location}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
-                        {formatDate(application.appliedAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+  <thead className="bg-muted/40 text-xs text-muted-foreground">
+    <tr>
+      <th className="px-5 py-3 font-medium">Company</th>
+      <th className="px-5 py-3 font-medium">Position</th>
+      <th className="px-5 py-3 font-medium">Status</th>
+      <th className="px-5 py-3 font-medium">Location</th>
+      <th className="px-5 py-3 font-medium">Applied</th>
+      <th className="px-5 py-3 text-right font-medium">Actions</th>
+    </tr>
+  </thead>
 
-              {filteredApplications.length === 0 && (
+  <tbody className="divide-y">
+    {filteredApplications.map((application) => (
+      <tr
+        key={application.id}
+        className="transition-colors hover:bg-muted/30"
+      >
+        <td className="whitespace-nowrap px-5 py-4 font-medium">
+          {application.company}
+        </td>
+
+        <td className="min-w-48 px-5 py-4">
+          {application.jobTitle}
+        </td>
+
+        <td className="whitespace-nowrap px-5 py-4">
+          <Badge
+            variant="outline"
+            className={getStatusClasses(application.status)}
+          >
+            {application.status}
+          </Badge>
+        </td>
+
+        <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
+          {application.location}
+        </td>
+
+        <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
+          {formatDate(application.appliedAt)}
+        </td>
+
+        <td className="whitespace-nowrap px-5 py-4 text-right">
+          <div className="flex justify-end gap-2">
+  <Button
+    type="button"
+    variant="outline"
+    size="sm"
+    onClick={() =>
+      router.push(`/applications/${application.id}/edit`)
+    }
+  >
+    <Pencil className="mr-2 size-4" />
+    Edit
+  </Button>
+
+  <Button
+    type="button"
+    variant="outline"
+    size="sm"
+    disabled={deletingId === application.id}
+    onClick={() => handleDelete(application.id)}
+  >
+    <Trash2 className="mr-2 size-4" />
+    {deletingId === application.id ? "Deleting..." : "Delete"}
+  </Button>
+</div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+              {!isLoading && filteredApplications.length === 0 && (
                 <div className="px-5 py-12 text-center">
                   <Search className="mx-auto size-8 text-muted-foreground/60" />
                   <p className="mt-3 font-medium">No applications found</p>

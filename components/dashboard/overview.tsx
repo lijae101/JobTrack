@@ -1,3 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  getApplications,
+  type JobApplication,
+
+} from "@/lib/api/applications";
 
 import {
   ArrowDownRight,
@@ -17,7 +25,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { sampleApplications, type ApplicationStatus } from "@/lib/sample-data";
+
+import type { ApplicationStatus } from "@/lib/models/application";
 
 function getStatusClasses(status: ApplicationStatus) {
   switch (status) {
@@ -36,10 +45,52 @@ function getStatusClasses(status: ApplicationStatus) {
   }
 }
 
-const metrics = [
+
+
+function formatAppliedDate(date: string) {
+  const datePart = date.split("T")[0];
+
+  const [year, month, day] = datePart.split("-").map(Number);
+
+  const parsedDate = new Date(year, month - 1, day);
+
+  return parsedDate.toLocaleDateString("en-CA", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+
+
+export function Overview() {
+
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+
+
+    useEffect(() => {
+      async function loadApplications() {
+        try {
+          const data = await getApplications();
+          setApplications(data);
+        } catch (err) {
+          setError("Failed to load applications.");
+          console.error(err);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+
+      loadApplications();
+    }, []);
+
+    const metrics = [
   {
     label: "Total applications",
-    value: sampleApplications.filter(
+    value: applications.filter(
       (application) => application.status !== "Wishlist",
     ).length,
     detail: "Applications submitted",
@@ -47,7 +98,7 @@ const metrics = [
   },
   {
     label: "Interviews",
-    value: sampleApplications.filter(
+    value: applications.filter(
       (application) => application.status === "Interview",
     ).length,
     detail: "In the interview stage",
@@ -55,7 +106,7 @@ const metrics = [
   },
   {
     label: "Offers",
-    value: sampleApplications.filter(
+    value: applications.filter(
       (application) => application.status === "Offer",
     ).length,
     detail: "Offers received",
@@ -63,26 +114,30 @@ const metrics = [
   },
   {
     label: "Rejected",
-    value: sampleApplications.filter(
+    value: applications.filter(
       (application) => application.status === "Rejected",
     ).length,
     detail: "Applications declined",
     icon: Clock3,
   },
 ];
-
-export function Overview() {
-  const recentApplications = [...sampleApplications]
+  
+    const recentApplications = [...applications]
     .filter((application) => application.appliedAt !== null)
     .sort((a, b) => b.appliedAt!.localeCompare(a.appliedAt!))
     .slice(0, 5);
-
-  return (
+  
+    return (
     <div className="space-y-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <p className="text-sm text-muted-foreground">
-            Tuesday, October 27, 2026
+            {new Date().toLocaleDateString("en-CA", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
           </p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             Overview
@@ -119,8 +174,7 @@ export function Overview() {
 
               <CardContent className="px-5">
                 <p className="text-3xl font-semibold tracking-tight">
-                  {metric.value}
-                </p>
+                  {isLoading || error ? "—" : metric.value}                </p>
                 <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <TrendIcon className="size-3.5" />
                   {metric.detail}
@@ -186,13 +240,7 @@ export function Overview() {
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
                       {application.appliedAt
-                        ? new Date(
-                            `${application.appliedAt}T12:00:00`,
-                          ).toLocaleDateString("en-CA", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
+                        ? formatAppliedDate(application.appliedAt)
                         : "—"}
                     </td>
                   </tr>
@@ -201,7 +249,19 @@ export function Overview() {
             </table>
           </div>
 
-          {recentApplications.length === 0 && (
+          {isLoading && (
+            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
+              Loading applications...
+            </div>
+          )}
+
+          {error && (
+            <div className="px-5 py-12 text-center text-sm text-destructive">
+              {error}
+            </div>
+          )}
+          
+          {!isLoading && !error && recentApplications.length === 0 && (
             <div className="px-5 py-12 text-center text-sm text-muted-foreground">
               No applications yet. Add your first application to get started.
             </div>

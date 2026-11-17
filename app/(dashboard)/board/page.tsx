@@ -1,8 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";import Link from "next/link";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -14,11 +13,14 @@ import { Sidebar } from "@/components/dashboard/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+
 import {
-  sampleApplications,
-  type ApplicationStatus,
+  getApplications,
+  updateApplication,
   type JobApplication,
-} from "@/lib/sample-data";
+} from "@/lib/api/applications";
+
+import type { ApplicationStatus } from "@/lib/models/application";
 
 const columns: ApplicationStatus[] = [
   "Wishlist",
@@ -46,7 +48,7 @@ function getStatusClasses(status: ApplicationStatus) {
   }
 }
 
-function formatDate(date: string | null) {
+function formatDate(date: string | null | undefined) {
   if (!date) return "Not applied yet";
 
   return new Date(`${date}T12:00:00`).toLocaleDateString("en-CA", {
@@ -57,16 +59,41 @@ function formatDate(date: string | null) {
 }
 
 export default function BoardPage() {
-  const [applications, setApplications] =
-    useState<JobApplication[]>(sampleApplications);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  function updateStatus(id: string, status: ApplicationStatus) {
+  useEffect(() => {
+  async function loadApplications() {
+    try {
+      const data = await getApplications();
+      setApplications(data);
+    } catch (err) {
+      setError("Failed to load applications.");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  loadApplications();
+}, []);
+
+
+  async function updateStatus(id: string, status: ApplicationStatus) {
+  try {
+    const updatedApplication = await updateApplication(id, { status });
+
     setApplications((current) =>
       current.map((application) =>
-        application.id === id ? { ...application, status } : application,
+        application.id === id ? updatedApplication : application,
       ),
     );
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update application status.");
   }
+}
 
   return (
     <div className="min-h-screen bg-background text-foreground">

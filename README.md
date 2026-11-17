@@ -2,6 +2,10 @@
 
 A full-stack job application tracker built with Next.js, TypeScript and MongoDB. JobTrack helps users organize their job search, manage applications and keep track of their progress through a clean dashboard and Kanban board.
 
+## Live Demo
+
+[View JobTrack](https://job-track-jet-iota.vercel.app)
+
 ## Features
 
 - **Authentication:** User registration and login using Better Auth.
@@ -63,9 +67,20 @@ A full-stack job application tracker built with Next.js, TypeScript and MongoDB.
 
 6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+
 ## Screenshots
 
-Screenshots of the application will be added here.
+### Dashboard
+![JobTrack Dashboard](screenshots/dashboard.png)
+
+### Applications
+![JobTrack Applications](screenshots/applications.png)
+
+### Kanban Board
+![JobTrack Kanban Board](screenshots/kanban.png)
+
+### Application Form
+![JobTrack Application Form](screenshots/application-form.png)
 
 ## Future Improvements
 

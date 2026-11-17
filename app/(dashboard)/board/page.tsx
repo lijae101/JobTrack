@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -51,7 +51,11 @@ function getStatusClasses(status: ApplicationStatus) {
 function formatDate(date: string | null | undefined) {
   if (!date) return "Not applied yet";
 
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-CA", {
+  const datePart = date.split("T")[0];
+  const [year, month, day] = datePart.split("-").map(Number);
+  const parsedDate = new Date(year, month - 1, day);
+
+  return parsedDate.toLocaleDateString("en-CA", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -64,36 +68,35 @@ export default function BoardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-  async function loadApplications() {
-    try {
-      const data = await getApplications();
-      setApplications(data);
-    } catch (err) {
-      setError("Failed to load applications.");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+    async function loadApplications() {
+      try {
+        const data = await getApplications();
+        setApplications(data);
+      } catch (err) {
+        setError("Failed to load applications.");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }
 
-  loadApplications();
-}, []);
-
+    loadApplications();
+  }, []);
 
   async function updateStatus(id: string, status: ApplicationStatus) {
-  try {
-    const updatedApplication = await updateApplication(id, { status });
+    try {
+      const updatedApplication = await updateApplication(id, { status });
 
-    setApplications((current) =>
-      current.map((application) =>
-        application.id === id ? updatedApplication : application,
-      ),
-    );
-  } catch (err) {
-    console.error(err);
-    alert("Failed to update application status.");
+      setApplications((current) =>
+        current.map((application) =>
+          application.id === id ? updatedApplication : application,
+        ),
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update application status.");
+    }
   }
-}
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -117,120 +120,134 @@ export default function BoardPage() {
             </div>
 
             <Button
-                onClick={() => {
+              onClick={() => {
                 window.location.href = "/applications/new";
-                }}
+              }}
             >
-            <Plus className="size-4" />
-            Add application
+              <Plus className="size-4" />
+              Add application
             </Button>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {columns.map((status) => {
-              const columnApplications = applications.filter(
-                (application) => application.status === status,
-              );
+          {isLoading && (
+            <p className="text-sm text-muted-foreground">
+              Loading applications...
+            </p>
+          )}
 
-              return (
-                <section
-                  key={status}
-                  className="w-72 shrink-0 rounded-xl bg-muted/40 p-3"
-                >
-                  <div className="mb-3 flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-sm font-semibold">{status}</h2>
-                      <Badge variant="secondary">
-                        {columnApplications.length}
-                      </Badge>
-                    </div>
-                    <span className="size-2 rounded-full bg-muted-foreground/40" />
-                  </div>
+          {error && (
+            <p className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
 
-                  <div className="space-y-3">
-                    {columnApplications.map((application) => (
-                      <Card
-                        key={application.id}
-                        className="gap-3 py-4 shadow-none"
-                      >
-                        <CardContent className="space-y-3 px-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-semibold leading-snug">
-                                {application.jobTitle}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {application.company}
-                              </p>
-                            </div>
-                            <BriefcaseBusiness className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                          </div>
+          {!isLoading && !error && (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {columns.map((status) => {
+                const columnApplications = applications.filter(
+                  (application) => application.status === status,
+                );
 
-                          <div className="text-xs text-muted-foreground">
-                            {application.location}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <CalendarDays className="size-3.5" />
-                            {formatDate(application.appliedAt)}
-                          </div>
-
-                          <div className="border-t pt-3">
-                            <label
-                              htmlFor={`status-${application.id}`}
-                              className="mb-1.5 block text-xs font-medium text-muted-foreground"
-                            >
-                              Change status
-                            </label>
-                            <select
-                              id={`status-${application.id}`}
-                              value={application.status}
-                              onChange={(event) =>
-                                updateStatus(
-                                  application.id,
-                                  event.target.value as ApplicationStatus,
-                                )
-                              }
-                              className="h-9 w-full rounded-md border bg-background px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
-                              {columns.map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <Badge
-                            variant="outline"
-                            className={getStatusClasses(application.status)}
-                          >
-                            {application.status}
-                          </Badge>
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {columnApplications.length === 0 && (
-                      <div className="rounded-lg border border-dashed bg-background/60 px-3 py-8 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          No applications here
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Change a card&apos;s status to move it here.
-                        </p>
+                return (
+                  <section
+                    key={status}
+                    className="w-72 shrink-0 rounded-xl bg-muted/40 p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between px-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold">{status}</h2>
+                        <Badge variant="secondary">
+                          {columnApplications.length}
+                        </Badge>
                       </div>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+                      <span className="size-2 rounded-full bg-muted-foreground/40" />
+                    </div>
+
+                    <div className="space-y-3">
+                      {columnApplications.map((application) => (
+                        <Card
+                          key={application.id}
+                          className="gap-3 py-4 shadow-none"
+                        >
+                          <CardContent className="space-y-3 px-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold leading-snug">
+                                  {application.jobTitle}
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                  {application.company}
+                                </p>
+                              </div>
+                              <BriefcaseBusiness className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                            </div>
+
+                            <div className="text-xs text-muted-foreground">
+                              {application.location}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <CalendarDays className="size-3.5" />
+                              {formatDate(application.appliedAt)}
+                            </div>
+
+                            <div className="border-t pt-3">
+                              <label
+                                htmlFor={`status-${application.id}`}
+                                className="mb-1.5 block text-xs font-medium text-muted-foreground"
+                              >
+                                Change status
+                              </label>
+                              <select
+                                id={`status-${application.id}`}
+                                value={application.status}
+                                onChange={(event) =>
+                                  updateStatus(
+                                    application.id,
+                                    event.target.value as ApplicationStatus,
+                                  )
+                                }
+                                className="h-9 w-full rounded-md border bg-background px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                {columns.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <Badge
+                              variant="outline"
+                              className={getStatusClasses(application.status)}
+                            >
+                              {application.status}
+                            </Badge>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {columnApplications.length === 0 && (
+                        <div className="rounded-lg border border-dashed bg-background/60 px-3 py-8 text-center">
+                          <p className="text-sm text-muted-foreground">
+                            No applications here
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Change a card&apos;s status to move it here.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ArrowRight className="size-4" />
-            Status changes update the board immediately. They are temporary
-            until we connect the database.
+            Status changes are saved automatically and synced with your
+            database.
           </div>
         </main>
       </div>
